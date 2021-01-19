@@ -153,7 +153,7 @@ createPlaylistsDF.show(truncate=False)
 songs = readSongsDF.select("id").rdd.flatMap(lambda x: x).collect()
 
 print( "Insert playlists Result")
-createPlaylistsDF.join(readPlaylistsDF, createPlaylistsDF.id == readPlaylistsDF.id, 'leftanti').show()
+createPlaylistsDF.join(readPlaylistsDF, createPlaylistsDF.id == readPlaylistsDF.id, 'leftanti').join(readUserDF, createPlaylistsDF.user_id == readUserDF.id, 'inner').select(createPlaylistsDF.id, createPlaylistsDF.user_id, F.array_intersect(createPlaylistsDF.song_ids,  F.array([F.lit(x) for x in songs])).alias("song_ids")).show(truncate=False)
 
 print("Delete playlists")
 deletePlaylistsDF = df.withColumn('Exp_Results',F.explode('delete.playlists')).select('Exp_Results.*')
