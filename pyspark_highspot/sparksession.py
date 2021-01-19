@@ -1,8 +1,7 @@
 import json
 
-from pyspark.sql import SparkSession, Window
+from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.functions import lit
 from pyspark.sql.types import StructType
 
 spark = (SparkSession
