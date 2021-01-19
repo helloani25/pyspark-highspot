@@ -2,6 +2,7 @@ import json
 
 from pyspark.sql import SparkSession, Window
 from pyspark.sql import functions as F
+from pyspark.sql.functions import lit
 from pyspark.sql.types import StructType
 
 
@@ -149,6 +150,7 @@ createPlaylistsDF.show(truncate=False)
 
 # df_upsert = readPlaylistsDF.union(createPlaylistsDF)
 # df_upsert.orderBy('id').show()
+songs = readSongsDF.select("id").rdd.flatMap(lambda x: x).collect()
 
 print( "Insert playlists Result")
 createPlaylistsDF.join(readPlaylistsDF, createPlaylistsDF.id == readPlaylistsDF.id, 'leftanti').show()
@@ -165,5 +167,5 @@ updatePlaylistsDF = df.withColumn('Exp_Results',F.explode('update.playlists')).s
 updatePlaylistsDF.show(truncate=False)
 
 print("Update playlists Result")
-updatePlaylistsDF.join(readPlaylistsDF, (updatePlaylistsDF.id == readPlaylistsDF.id) & (updatePlaylistsDF.user_id == readPlaylistsDF.user_id), 'inner').show()
+updatePlaylistsDF.join(readPlaylistsDF, (updatePlaylistsDF.id == readPlaylistsDF.id) & (updatePlaylistsDF.user_id == readPlaylistsDF.user_id), 'inner').select(updatePlaylistsDF.id, updatePlaylistsDF.user_id, F.array_intersect(updatePlaylistsDF.song_ids,  F.array([F.lit(x) for x in songs])).alias("song_ids")).show()
 
