@@ -111,7 +111,7 @@ readPlaylistsDF.createOrReplaceTempView("playlists")
 # usersDF.show()
 #
 # print("Source Playlists")
-# readPlaylists.createOrReplaceTempView("playlists")
+# readPlaylistsDF.createOrReplaceTempView("playlists")
 # playlistsDF = spark.sql("SELECT * FROM playlists")
 # playlistsDF.show()
 #
@@ -134,16 +134,27 @@ df = spark.read.option("multiLine", True).option("mode", "PERMISSIVE").schema(ed
 # df = spark.read.schema(schema).from(path='hdfs://localhost:9000/user/anithasubramanian/inputs/mixtape.json')
 df.show(truncate=False)
 
-# df_upsert = readPlaylistsDF.union(createPlaylistsDF)
-# df_upsert.orderBy('id').show()
 songs = readSongsDF.select("id").rdd.flatMap(lambda x: x).collect()
+
+print("Insert playlists")
+createPlaylistsDF = df.withColumn('Exp_Results', F.explode('create.playlists')).select('Exp_Results.*')
+createPlaylistsDF.show(truncate=False)
+
+print("Insert playlists Result")
+createPlaylistsDF = createPlaylistsDF.join(readPlaylistsDF, createPlaylistsDF.id == readPlaylistsDF.id, 'leftanti').join(readUserDF,
+                                                                                                     createPlaylistsDF.user_id == readUserDF.id,
+                                                                                                     'inner').select(
+    createPlaylistsDF.id, F.array_intersect(createPlaylistsDF.song_ids, F.array([F.lit(x) for x in songs])).alias("song_ids"), createPlaylistsDF.user_id)
+readPlaylistsDF = readPlaylistsDF.union(createPlaylistsDF)
+readPlaylistsDF.orderBy('id').show()
 
 print("Delete playlists")
 deletePlaylistsDF = df.withColumn('id', F.explode('delete.playlist_ids')).select("id")
 deletePlaylistsDF.show(truncate=False)
 
 print("Delete playlists Result")
-deletePlaylistsDF.join(readPlaylistsDF, deletePlaylistsDF.id == readPlaylistsDF.id, 'leftsemi').show()
+readPlaylistsDF = readPlaylistsDF.join(deletePlaylistsDF, readPlaylistsDF.id == deletePlaylistsDF.id, "left_outer").where(deletePlaylistsDF.id.isNull()).select(readPlaylistsDF.id, readPlaylistsDF.song_ids, readPlaylistsDF.user_id)
+readPlaylistsDF.show()
 
 print("Update playlists")
 updatePlaylistsDF = df.withColumn('Exp_Results', F.explode('update.playlists')).select('Exp_Results.*')
@@ -156,18 +167,8 @@ updatePlaylistsDF.join(readPlaylistsDF, (updatePlaylistsDF.id == readPlaylistsDF
                                                                                F.array_union(F.array_intersect(
                                                                                    updatePlaylistsDF.song_ids,
                                                                                    F.array([F.lit(x) for x in songs])),
-                                                                                             readPlaylistsDF.song_ids).alias(
-                                                                                   "song_ids")).show(truncate=False)
+                                                                                   readPlaylistsDF.song_ids).alias(
+                                                                                   "song_ids"))
+updatePlaylistsDF.show(truncate=False)
+updatePlaylistsDF.createOrReplaceTempView("updatePlaylists")
 
-print("Insert playlists")
-createPlaylistsDF = df.withColumn('Exp_Results', F.explode('create.playlists')).select('Exp_Results.*')
-createPlaylistsDF.show(truncate=False)
-
-print("Insert playlists Result")
-createPlaylistsDF.join(readPlaylistsDF, createPlaylistsDF.id == readPlaylistsDF.id, 'leftanti').join(readUserDF,
-                                                                                                     createPlaylistsDF.user_id == readUserDF.id,
-                                                                                                     'inner').select(
-    createPlaylistsDF.id, createPlaylistsDF.user_id,
-    F.array_intersect(createPlaylistsDF.song_ids, F.array([F.lit(x) for x in songs])).alias("song_ids")).show(
-    truncate=False)
-createPlaylistsDF.show(truncate=False)
