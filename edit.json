@@ -32,11 +32,7 @@
     ]
   },
   "delete": {
-    "playlists": [
-      {
-        "id": "1"
-      }
-    ]
+    "playlist_ids": ["4","2"]
   },
   "update": {
     "playlists": [

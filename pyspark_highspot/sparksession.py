@@ -44,16 +44,7 @@ spark = (SparkSession
 #     ]
 #   },
 #   "delete": {
-#     "playlists": [
-#       {
-#         "id": "1",
-#         "user_id": "2",
-#         "song_ids": [
-#           "8",
-#           "32"
-#         ]
-#       }
-#     ]
+#     "playlist_ids": ["4","2"]
 #   },
 #   "update": {
 #     "playlists": [
@@ -83,7 +74,7 @@ spark = (SparkSession
 #     ]
 #   }
 # }"""
-#
+
 # df = spark.read.json(spark.sparkContext.parallelize([jsonData]))
 # print(df.schema.json())
 # schema = df.schema
@@ -99,7 +90,6 @@ except ValueError:  # includes simplejson.decoder.JSONDecodeError
 print("Source mixtape")
 df = spark.read.option("multiLine", True).option("mode", "PERMISSIVE").schema(source_schema).json(
     "hdfs://localhost:9000/user/anithasubramanian/inputs/mixtape.json")
-# df = spark.read.schema(schema).from(path='hdfs://localhost:9000/user/anithasubramanian/inputs/mixtape.json')
 df.show(truncate=False)
 
 print("Source Users")
@@ -144,24 +134,12 @@ df = spark.read.option("multiLine", True).option("mode", "PERMISSIVE").schema(ed
 # df = spark.read.schema(schema).from(path='hdfs://localhost:9000/user/anithasubramanian/inputs/mixtape.json')
 df.show(truncate=False)
 
-print("Insert playlists")
-createPlaylistsDF = df.withColumn('Exp_Results', F.explode('create.playlists')).select('Exp_Results.*')
-createPlaylistsDF.show(truncate=False)
-
 # df_upsert = readPlaylistsDF.union(createPlaylistsDF)
 # df_upsert.orderBy('id').show()
 songs = readSongsDF.select("id").rdd.flatMap(lambda x: x).collect()
 
-print("Insert playlists Result")
-createPlaylistsDF.join(readPlaylistsDF, createPlaylistsDF.id == readPlaylistsDF.id, 'leftanti').join(readUserDF,
-                                                                                                     createPlaylistsDF.user_id == readUserDF.id,
-                                                                                                     'inner').select(
-    createPlaylistsDF.id, createPlaylistsDF.user_id,
-    F.array_intersect(createPlaylistsDF.song_ids, F.array([F.lit(x) for x in songs])).alias("song_ids")).show(
-    truncate=False)
-
 print("Delete playlists")
-deletePlaylistsDF = df.withColumn('Exp_Results', F.explode('delete.playlists')).select('Exp_Results.*')
+deletePlaylistsDF = df.withColumn('id', F.explode('delete.playlist_ids')).select("id")
 deletePlaylistsDF.show(truncate=False)
 
 print("Delete playlists Result")
@@ -180,3 +158,16 @@ updatePlaylistsDF.join(readPlaylistsDF, (updatePlaylistsDF.id == readPlaylistsDF
                                                                                    F.array([F.lit(x) for x in songs])),
                                                                                              readPlaylistsDF.song_ids).alias(
                                                                                    "song_ids")).show(truncate=False)
+
+print("Insert playlists")
+createPlaylistsDF = df.withColumn('Exp_Results', F.explode('create.playlists')).select('Exp_Results.*')
+createPlaylistsDF.show(truncate=False)
+
+print("Insert playlists Result")
+createPlaylistsDF.join(readPlaylistsDF, createPlaylistsDF.id == readPlaylistsDF.id, 'leftanti').join(readUserDF,
+                                                                                                     createPlaylistsDF.user_id == readUserDF.id,
+                                                                                                     'inner').select(
+    createPlaylistsDF.id, createPlaylistsDF.user_id,
+    F.array_intersect(createPlaylistsDF.song_ids, F.array([F.lit(x) for x in songs])).alias("song_ids")).show(
+    truncate=False)
+createPlaylistsDF.show(truncate=False)
