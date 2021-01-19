@@ -129,15 +129,15 @@ except ValueError:  # includes simplejson.decoder.JSONDecodeError
     raise ValueError
 
 print("Edit mixtape")
-df = spark.read.option("multiLine", True).option("mode", "PERMISSIVE").schema(edit_schema).json(
+df_edit = spark.read.option("multiLine", True).option("mode", "PERMISSIVE").schema(edit_schema).json(
     "hdfs://localhost:9000/user/anithasubramanian/inputs/edit.json")
 # df = spark.read.schema(schema).from(path='hdfs://localhost:9000/user/anithasubramanian/inputs/mixtape.json')
-df.show(truncate=False)
+df_edit.show(truncate=False)
 
 songs = readSongsDF.select("id").rdd.flatMap(lambda x: x).collect()
 
 print("Insert playlists")
-createPlaylistsDF = df.withColumn('Exp_Results', F.explode('create.playlists')).select('Exp_Results.*')
+createPlaylistsDF = df_edit.withColumn('Exp_Results', F.explode('create.playlists')).select('Exp_Results.*')
 createPlaylistsDF.show(truncate=False)
 
 print("Insert playlists Result")
@@ -149,7 +149,7 @@ readPlaylistsDF = readPlaylistsDF.union(createPlaylistsDF)
 readPlaylistsDF.orderBy('id').show()
 
 print("Delete playlists")
-deletePlaylistsDF = df.withColumn('id', F.explode('delete.playlist_ids')).select("id")
+deletePlaylistsDF = df_edit.withColumn('id', F.explode('delete.playlist_ids')).select("id")
 deletePlaylistsDF.show(truncate=False)
 
 print("Delete playlists Result")
@@ -157,11 +157,11 @@ readPlaylistsDF = readPlaylistsDF.join(deletePlaylistsDF, readPlaylistsDF.id == 
 readPlaylistsDF.show()
 
 print("Update playlists")
-updatePlaylistsDF = df.withColumn('Exp_Results', F.explode('update.playlists')).select('Exp_Results.*')
+updatePlaylistsDF = df_edit.withColumn('Exp_Results', F.explode('update.playlists')).select('Exp_Results.*')
 updatePlaylistsDF.show(truncate=False)
 
 print("Update playlists Result")
-updatePlaylistsDF.join(readPlaylistsDF, (updatePlaylistsDF.id == readPlaylistsDF.id) & (
+updatePlaylistsDF = updatePlaylistsDF.join(readPlaylistsDF, (updatePlaylistsDF.id == readPlaylistsDF.id) & (
         updatePlaylistsDF.user_id == readPlaylistsDF.user_id), 'inner').select(updatePlaylistsDF.id,
                                                                                updatePlaylistsDF.user_id,
                                                                                F.array_union(F.array_intersect(
@@ -170,5 +170,9 @@ updatePlaylistsDF.join(readPlaylistsDF, (updatePlaylistsDF.id == readPlaylistsDF
                                                                                    readPlaylistsDF.song_ids).alias(
                                                                                    "song_ids"))
 updatePlaylistsDF.show(truncate=False)
-updatePlaylistsDF.createOrReplaceTempView("updatePlaylists")
+
+readPlaylistsDF = readPlaylistsDF.join(updatePlaylistsDF, readPlaylistsDF.id == updatePlaylistsDF.id, "left").select(readPlaylistsDF.id, F.coalesce(updatePlaylistsDF.song_ids, readPlaylistsDF.song_ids).alias("song_ids"), readPlaylistsDF.user_id)
+readPlaylistsDF.show()
+
+
 

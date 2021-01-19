@@ -37,13 +37,6 @@
   "update": {
     "playlists": [
       {
-        "id": "1",
-        "user_id": "2",
-        "song_ids": [
-          "11"
-        ]
-      },
-      {
         "id": "2",
         "user_id": "3",
         "song_ids": [
