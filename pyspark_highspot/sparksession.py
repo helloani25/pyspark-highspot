@@ -5,12 +5,11 @@ from pyspark.sql import functions as F
 from pyspark.sql.functions import lit
 from pyspark.sql.types import StructType
 
-
 spark = (SparkSession
-        .builder
-        .appName("Pyspark Upsert Example")
-        .getOrCreate()
-        )
+         .builder
+         .appName("Pyspark Upsert Example")
+         .getOrCreate()
+         )
 
 # jsonData = """{
 #   "create": {
@@ -88,31 +87,32 @@ spark = (SparkSession
 #
 # df = spark.read.json(spark.sparkContext.parallelize([jsonData]))
 # print(df.schema.json())
-#schema = df.schema
-#df.show()
+# schema = df.schema
+# df.show()
 
 try:
     with open('../schema/source_schema.json') as f:
         source_schema = StructType.fromJson(json.load(f))
 except ValueError:  # includes simplejson.decoder.JSONDecodeError
-    print ('Decoding JSON has failed')
+    print('Decoding JSON has failed')
     raise ValueError
 
 print("Source mixtape")
-df = spark.read.option("multiLine", True).option("mode", "PERMISSIVE").schema(source_schema).json("hdfs://localhost:9000/user/anithasubramanian/inputs/mixtape.json")
-#df = spark.read.schema(schema).from(path='hdfs://localhost:9000/user/anithasubramanian/inputs/mixtape.json')
+df = spark.read.option("multiLine", True).option("mode", "PERMISSIVE").schema(source_schema).json(
+    "hdfs://localhost:9000/user/anithasubramanian/inputs/mixtape.json")
+# df = spark.read.schema(schema).from(path='hdfs://localhost:9000/user/anithasubramanian/inputs/mixtape.json')
 df.show(truncate=False)
 
 print("Source Users")
-readUserDF = df.withColumn('Exp_Results',F.explode('users')).select('Exp_Results.*')
+readUserDF = df.withColumn('Exp_Results', F.explode('users')).select('Exp_Results.*')
 readUserDF.show(truncate=False)
 
 print("Source Playlists")
-readPlaylistsDF = df.withColumn('Exp_Results',F.explode('playlists')).select('Exp_Results.*')
+readPlaylistsDF = df.withColumn('Exp_Results', F.explode('playlists')).select('Exp_Results.*')
 readPlaylistsDF.show(truncate=False)
 
 print("Source Songs")
-readSongsDF = df.withColumn('Exp_Results',F.explode('songs')).select('Exp_Results.*')
+readSongsDF = df.withColumn('Exp_Results', F.explode('songs')).select('Exp_Results.*')
 readSongsDF.show(truncate=False)
 readPlaylistsDF.createOrReplaceTempView("playlists")
 
@@ -136,36 +136,48 @@ try:
     with open('../schema/edit_schema.json') as f:
         edit_schema = StructType.fromJson(json.load(f))
 except ValueError:  # includes simplejson.decoder.JSONDecodeError
-    print ('Decoding JSON has failed')
+    print('Decoding JSON has failed')
     raise ValueError
 
 print("Edit mixtape")
-df = spark.read.option("multiLine", True).option("mode", "PERMISSIVE").schema(edit_schema).json("hdfs://localhost:9000/user/anithasubramanian/inputs/edit.json")
-#df = spark.read.schema(schema).from(path='hdfs://localhost:9000/user/anithasubramanian/inputs/mixtape.json')
+df = spark.read.option("multiLine", True).option("mode", "PERMISSIVE").schema(edit_schema).json(
+    "hdfs://localhost:9000/user/anithasubramanian/inputs/edit.json")
+# df = spark.read.schema(schema).from(path='hdfs://localhost:9000/user/anithasubramanian/inputs/mixtape.json')
 df.show(truncate=False)
 
-print( "Insert playlists")
-createPlaylistsDF = df.withColumn('Exp_Results',F.explode('create.playlists')).select('Exp_Results.*')
+print("Insert playlists")
+createPlaylistsDF = df.withColumn('Exp_Results', F.explode('create.playlists')).select('Exp_Results.*')
 createPlaylistsDF.show(truncate=False)
 
 # df_upsert = readPlaylistsDF.union(createPlaylistsDF)
 # df_upsert.orderBy('id').show()
 songs = readSongsDF.select("id").rdd.flatMap(lambda x: x).collect()
 
-print( "Insert playlists Result")
-createPlaylistsDF.join(readPlaylistsDF, createPlaylistsDF.id == readPlaylistsDF.id, 'leftanti').join(readUserDF, createPlaylistsDF.user_id == readUserDF.id, 'inner').select(createPlaylistsDF.id, createPlaylistsDF.user_id, F.array_intersect(createPlaylistsDF.song_ids,  F.array([F.lit(x) for x in songs])).alias("song_ids")).show(truncate=False)
+print("Insert playlists Result")
+createPlaylistsDF.join(readPlaylistsDF, createPlaylistsDF.id == readPlaylistsDF.id, 'leftanti').join(readUserDF,
+                                                                                                     createPlaylistsDF.user_id == readUserDF.id,
+                                                                                                     'inner').select(
+    createPlaylistsDF.id, createPlaylistsDF.user_id,
+    F.array_intersect(createPlaylistsDF.song_ids, F.array([F.lit(x) for x in songs])).alias("song_ids")).show(
+    truncate=False)
 
 print("Delete playlists")
-deletePlaylistsDF = df.withColumn('Exp_Results',F.explode('delete.playlists')).select('Exp_Results.*')
+deletePlaylistsDF = df.withColumn('Exp_Results', F.explode('delete.playlists')).select('Exp_Results.*')
 deletePlaylistsDF.show(truncate=False)
 
 print("Delete playlists Result")
 deletePlaylistsDF.join(readPlaylistsDF, deletePlaylistsDF.id == readPlaylistsDF.id, 'leftsemi').show()
 
 print("Update playlists")
-updatePlaylistsDF = df.withColumn('Exp_Results',F.explode('update.playlists')).select('Exp_Results.*')
+updatePlaylistsDF = df.withColumn('Exp_Results', F.explode('update.playlists')).select('Exp_Results.*')
 updatePlaylistsDF.show(truncate=False)
 
 print("Update playlists Result")
-updatePlaylistsDF.join(readPlaylistsDF, (updatePlaylistsDF.id == readPlaylistsDF.id) & (updatePlaylistsDF.user_id == readPlaylistsDF.user_id), 'inner').select(updatePlaylistsDF.id, updatePlaylistsDF.user_id, F.array_intersect(updatePlaylistsDF.song_ids,  F.array([F.lit(x) for x in songs])).alias("song_ids")).show()
-
+updatePlaylistsDF.join(readPlaylistsDF, (updatePlaylistsDF.id == readPlaylistsDF.id) & (
+        updatePlaylistsDF.user_id == readPlaylistsDF.user_id), 'inner').select(updatePlaylistsDF.id,
+                                                                               updatePlaylistsDF.user_id,
+                                                                               F.array_union(F.array_intersect(
+                                                                                   updatePlaylistsDF.song_ids,
+                                                                                   F.array([F.lit(x) for x in songs])),
+                                                                                             readPlaylistsDF.song_ids).alias(
+                                                                                   "song_ids")).show(truncate=False)
