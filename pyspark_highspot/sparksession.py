@@ -102,7 +102,7 @@ result = df
 result = result.drop("playlists")
 result = result.crossJoin(playlistsDF)
 playlistsDF.unpersist()
-result.coalesce(1).write.format('json').save('hdfs://localhost:9000/user/anithasubramanian/outputs/mixtape4.json')
+result.coalesce(1).write.format('json').save('hdfs://localhost:9000/user/anithasubramanian/outputs/mixtape5.json')
 
 
 result.show(truncate=False)
