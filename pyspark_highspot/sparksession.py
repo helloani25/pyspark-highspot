@@ -2,83 +2,14 @@ import json
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import StructType
+from pyspark.sql.functions import struct
+from pyspark.sql.types import StructType, Row
 
 spark = (SparkSession
          .builder
          .appName("Pyspark Upsert Example")
          .getOrCreate()
          )
-
-# jsonData = """{
-#   "create": {
-#     "playlists": [
-#       {
-#         "id": "4",
-#         "user_id": "1",
-#         "song_ids": [
-#           "8",
-#           "32"
-#         ]
-#       },
-#       {
-#         "id": "2",
-#         "user_id": "4",
-#         "song_ids": [
-#           "16",
-#           "18",
-#           "12"
-#         ]
-#       },
-#       {
-#         "id": "3",
-#         "user_id": "5",
-#         "song_ids": [
-#           "7",
-#           "22",
-#           "23",
-#           "6",
-#           "12"
-#         ]
-#       }
-#     ]
-#   },
-#   "delete": {
-#     "playlist_ids": ["4","2"]
-#   },
-#   "update": {
-#     "playlists": [
-#       {
-#         "id": "1",
-#         "user_id": "2",
-#         "song_ids": [
-#           "11"
-#         ]
-#       },
-#       {
-#         "id": "2",
-#         "user_id": "3",
-#         "song_ids": [
-#           "13",
-#           "14"
-#         ]
-#       },
-#       {
-#         "id": "3",
-#         "user_id": "7",
-#         "song_ids": [
-#           "17",
-#           "2"
-#         ]
-#       }
-#     ]
-#   }
-# }"""
-
-# df = spark.read.json(spark.sparkContext.parallelize([jsonData]))
-# print(df.schema.json())
-# schema = df.schema
-# df.show()
 
 try:
     with open('../schema/source_schema.json') as f:
@@ -105,21 +36,6 @@ readSongsDF = df.withColumn('Exp_Results', F.explode('songs')).select('Exp_Resul
 readSongsDF.show(truncate=False)
 readPlaylistsDF.createOrReplaceTempView("playlists")
 
-# print("Source Users")
-# readUser.createOrReplaceTempView("users")
-# usersDF = spark.sql("SELECT * FROM users")
-# usersDF.show()
-#
-# print("Source Playlists")
-# readPlaylistsDF.createOrReplaceTempView("playlists")
-# playlistsDF = spark.sql("SELECT * FROM playlists")
-# playlistsDF.show()
-#
-# print("Source Songs")
-# readSongs.createOrReplaceTempView("songs")
-# songsDF = spark.sql("SELECT * FROM songs")
-# songsDF.show()
-
 edit_schema = None
 try:
     with open('../schema/edit_schema.json') as f:
@@ -131,7 +47,6 @@ except ValueError:  # includes simplejson.decoder.JSONDecodeError
 print("Edit mixtape")
 df_edit = spark.read.option("multiLine", True).option("mode", "PERMISSIVE").schema(edit_schema).json(
     "hdfs://localhost:9000/user/anithasubramanian/inputs/edit.json")
-# df = spark.read.schema(schema).from(path='hdfs://localhost:9000/user/anithasubramanian/inputs/mixtape.json')
 df_edit.show(truncate=False)
 
 songs = readSongsDF.select("id").rdd.flatMap(lambda x: x).collect()
@@ -169,10 +84,21 @@ updatePlaylistsDF = updatePlaylistsDF.join(readPlaylistsDF, (updatePlaylistsDF.i
                                                                                    F.array([F.lit(x) for x in songs])),
                                                                                    readPlaylistsDF.song_ids).alias(
                                                                                    "song_ids"))
-updatePlaylistsDF.show(truncate=False)
 
 readPlaylistsDF = readPlaylistsDF.join(updatePlaylistsDF, readPlaylistsDF.id == updatePlaylistsDF.id, "left").select(readPlaylistsDF.id, F.coalesce(updatePlaylistsDF.song_ids, readPlaylistsDF.song_ids).alias("song_ids"), readPlaylistsDF.user_id)
 readPlaylistsDF.show()
+
+playlistsDF = readPlaylistsDF.agg(F.collect_list(struct("*")).alias('playlists'))
+result = df
+
+result = result.drop("playlists")
+result = result.crossJoin(playlistsDF)
+
+result.coalesce(1).write.format('json').save('hdfs://localhost:9000/user/anithasubramanian/outputs/mixtape.json')
+
+
+result.show(truncate=False)
+
 
 
 
