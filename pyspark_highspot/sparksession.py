@@ -1,13 +1,12 @@
 import json
-
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.functions import struct
-from pyspark.sql.types import StructType, Row
+from pyspark.sql.types import StructType
 
 spark = (SparkSession
          .builder
-         .appName("Pyspark Upsert Example")
+         .appName("Pyspark Highspot")
          .getOrCreate()
          )
 
@@ -102,7 +101,7 @@ result = df
 result = result.drop("playlists")
 result = result.crossJoin(playlistsDF)
 playlistsDF.unpersist()
-result.coalesce(1).write.format('json').save('hdfs://localhost:9000/user/anithasubramanian/outputs/mixtape5.json')
+result.coalesce(1).write.format('json').save('hdfs://localhost:9000/user/anithasubramanian/outputs/mixtape.json')
 
 
 result.show(truncate=False)
