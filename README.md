@@ -2,9 +2,9 @@
 # Choice of Tools or Architecture
 ********************************
 
-I used Hadoop with Spark since it offers advantages where data can be distributed across multiple name nodes and persisted. You also have resiliency since the data is replicated across nodes.
+I used Hadoop with Spark since it offers advantages where data can be distributed across multiple data nodes and persisted. You also have resiliency since the data is replicated across nodes.
 
-Another benefit we get is parallelism of the data processing. The Dataframes are essentially the complex structure of data fields and nested objects. Data Frames and Datasets, both of them are ultimately compiled down to an RDD
+Another benefit we get is parallelism of the data processing using Spark. The Dataframes are essentially the complex structure of data fields and nested objects. Data Frames and Datasets, both of them are ultimately compiled down to an RDD
 
 ### RDD
 ****
@@ -28,7 +28,7 @@ So using YARN we can schedule tasks to modify large files and specify the resour
 
 ##### Spark Parameters to tune to have better resource utilization in production
 **********************************************************************
-<B>Note</B>: I am not running Spark job in Cluster mode using YARN for this exercise
+<B>Note</B>: I am not running Spark job in Cluster mode using YARN for this exercise. But YARN must be used to run in cluster mode
 ##### In production
 ```
 Edit $SPARK_HOME/conf/spark-defaults.conf and set spark.master to yarn:
@@ -332,15 +332,15 @@ metadata stored using Protocol Buffers, which allows addition and removal of fie
 
 #### Hadoop parameters to tune for producion use
 
-Balancing data blocks for a Hadoop cluster
-Choosing a proper block size
-Using compression for input and output
-Setting proper number of map and reduce slots for TaskTracker
-Tuning the JobTracker configuration
-Tuning the TaskTracker configuration
-Tuning shuffle, merge, and sort parameters
-Configuring memory for a Hadoop cluster
-Setting proper number of parallel copies
-Tuning JVM parameters
-Configuring JVM Reuse
-Configuring the reducer initialization time
+* Balancing data blocks for a Hadoop cluster
+* Choosing a proper block size
+* Using compression for input and output
+* Setting proper number of map and reduce slots for TaskTracker
+* Tuning the JobTracker configuration
+* Tuning the TaskTracker configuration
+* Tuning shuffle, merge, and sort parameters
+* Configuring memory for a Hadoop cluster
+* Setting proper number of parallel copies
+* Tuning JVM parameters
+* Configuring JVM Reuse
+* Configuring the reducer initialization time
