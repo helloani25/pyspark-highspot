@@ -50,6 +50,7 @@ df_edit = spark.read.option("multiLine", True).option("mode", "PERMISSIVE").sche
 df_edit.show(truncate=False)
 
 songs = readSongsDF.select("id").rdd.flatMap(lambda x: x).collect()
+readSongsDF.unpersist()
 
 print("Insert playlists")
 createPlaylistsDF = df_edit.withColumn('Exp_Results', F.explode('create.playlists')).select('Exp_Results.*')
@@ -61,6 +62,9 @@ createPlaylistsDF = createPlaylistsDF.join(readPlaylistsDF, createPlaylistsDF.id
                                                                                                      'inner').select(
     createPlaylistsDF.id, F.array_intersect(createPlaylistsDF.song_ids, F.array([F.lit(x) for x in songs])).alias("song_ids"), createPlaylistsDF.user_id)
 readPlaylistsDF = readPlaylistsDF.union(createPlaylistsDF)
+createPlaylistsDF.unpersist()
+readUserDF.unpersist()
+
 readPlaylistsDF.orderBy('id').show()
 
 print("Delete playlists")
@@ -70,6 +74,7 @@ deletePlaylistsDF.show(truncate=False)
 print("Delete playlists Result")
 readPlaylistsDF = readPlaylistsDF.join(deletePlaylistsDF, readPlaylistsDF.id == deletePlaylistsDF.id, "left_outer").where(deletePlaylistsDF.id.isNull()).select(readPlaylistsDF.id, readPlaylistsDF.song_ids, readPlaylistsDF.user_id)
 readPlaylistsDF.show()
+deletePlaylistsDF.unpersist()
 
 print("Update playlists")
 updatePlaylistsDF = df_edit.withColumn('Exp_Results', F.explode('update.playlists')).select('Exp_Results.*')
@@ -88,13 +93,16 @@ updatePlaylistsDF = updatePlaylistsDF.join(readPlaylistsDF, (updatePlaylistsDF.i
 readPlaylistsDF = readPlaylistsDF.join(updatePlaylistsDF, readPlaylistsDF.id == updatePlaylistsDF.id, "left").select(readPlaylistsDF.id, F.coalesce(updatePlaylistsDF.song_ids, readPlaylistsDF.song_ids).alias("song_ids"), readPlaylistsDF.user_id)
 readPlaylistsDF.show()
 
+updatePlaylistsDF.unpersist()
+
 playlistsDF = readPlaylistsDF.agg(F.collect_list(struct("*")).alias('playlists'))
+readPlaylistsDF.unpersist()
 result = df
 
 result = result.drop("playlists")
 result = result.crossJoin(playlistsDF)
-
-result.coalesce(1).write.format('json').save('hdfs://localhost:9000/user/anithasubramanian/outputs/mixtape.json')
+playlistsDF.unpersist()
+result.coalesce(1).write.format('json').save('hdfs://localhost:9000/user/anithasubramanian/outputs/mixtape4.json')
 
 
 result.show(truncate=False)
