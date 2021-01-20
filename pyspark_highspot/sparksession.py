@@ -11,7 +11,7 @@ spark = (SparkSession
          )
 
 try:
-    with open('../schema/source_schema.json') as f:
+    with open('schema/source_schema.json') as f:
         source_schema = StructType.fromJson(json.load(f))
 except ValueError:  # includes simplejson.decoder.JSONDecodeError
     print('Decoding JSON has failed')
@@ -37,7 +37,7 @@ readPlaylistsDF.createOrReplaceTempView("playlists")
 
 edit_schema = None
 try:
-    with open('../schema/edit_schema.json') as f:
+    with open('schema/edit_schema.json') as f:
         edit_schema = StructType.fromJson(json.load(f))
 except ValueError:  # includes simplejson.decoder.JSONDecodeError
     print('Decoding JSON has failed')
