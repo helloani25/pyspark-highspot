@@ -55,6 +55,7 @@ print("Insert playlists")
 createPlaylistsDF = df_edit.withColumn('Exp_Results', F.explode('create.playlists')).select('Exp_Results.*')
 createPlaylistsDF.show(truncate=False)
 
+# Only consider playlists not in the source playlists
 print("Insert playlists Result")
 createPlaylistsDF = createPlaylistsDF.join(readPlaylistsDF, createPlaylistsDF.id == readPlaylistsDF.id, 'leftanti').join(readUserDF,
                                                                                                      createPlaylistsDF.user_id == readUserDF.id,
@@ -70,6 +71,7 @@ print("Delete playlists")
 deletePlaylistsDF = df_edit.withColumn('id', F.explode('delete.playlist_ids')).select("id")
 deletePlaylistsDF.show(truncate=False)
 
+# Only delete playlists that exist in the source playlists
 print("Delete playlists Result")
 readPlaylistsDF = readPlaylistsDF.join(deletePlaylistsDF, readPlaylistsDF.id == deletePlaylistsDF.id, "left_outer").where(deletePlaylistsDF.id.isNull()).select(readPlaylistsDF.id, readPlaylistsDF.song_ids, readPlaylistsDF.user_id)
 readPlaylistsDF.show()
@@ -79,6 +81,7 @@ print("Update playlists")
 updatePlaylistsDF = df_edit.withColumn('Exp_Results', F.explode('update.playlists')).select('Exp_Results.*')
 updatePlaylistsDF.show(truncate=False)
 
+# Only update song ids in the playlists when the user id and playlist id matches the source playlists
 print("Update playlists Result")
 updatePlaylistsDF = updatePlaylistsDF.join(readPlaylistsDF, (updatePlaylistsDF.id == readPlaylistsDF.id) & (
         updatePlaylistsDF.user_id == readPlaylistsDF.user_id), 'inner').select(updatePlaylistsDF.id,
